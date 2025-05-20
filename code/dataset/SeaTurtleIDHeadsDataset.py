@@ -7,7 +7,7 @@ import random
 
 class SeaTurtleIDHeadsDataset(BaseDataset):
     def __init__(self, root, mode, transform=None):
-        self.root = root
+        self.root = root + '/scaled_heads_dataset'
         self.mode = mode
         self.transform = transform
 

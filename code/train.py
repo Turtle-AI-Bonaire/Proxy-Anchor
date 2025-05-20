@@ -107,14 +107,13 @@ LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch
 wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)
 wandb.config.update(args)
 
-os.chdir('../data/')
-data_root = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'scaled_heads_dataset'))
+data_root = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..'))
+os.chdir(data_root)
 
 # Dataset Loader and Sampler
 
 if args.dataset == 'tih':
     print("Correct Dataset")
-    dataset_folder = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'scaled_heads_dataset'))
     trn_dataset = SeaTurtleIDHeadsDataset(
             root = data_root,
             mode = 'train',
