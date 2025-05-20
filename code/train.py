@@ -3,6 +3,7 @@ import random, dataset, utils, losses, net
 import numpy as np
 
 from dataset.Inshop import Inshop_Dataset
+from dataset.SeaTurtleIDHeadsDataset import SeaTurtleIDHeadsDataset
 from net.resnet import *
 from net.googlenet import *
 from net.bn_inception import *
@@ -29,8 +30,8 @@ parser.add_argument('--LOG_DIR',
     help = 'Path to log folder'
 )
 parser.add_argument('--dataset', 
-    default='cub',
-    help = 'Training dataset, e.g. cub, cars, SOP, Inshop'
+    default='tih',
+    help = 'Training dataset, e.g. cub, cars, SOP, Inshop, tih'
 )
 parser.add_argument('--embedding-size', default = 512, type = int,
     dest = 'sz_embedding',
@@ -51,7 +52,7 @@ parser.add_argument('--workers', default = 4, type = int,
     dest = 'nb_workers',
     help = 'Number of workers for dataloader.'
 )
-parser.add_argument('--model', default = 'bn_inception',
+parser.add_argument('--model', default = 'resnet50',
     help = 'Model for training'
 )
 parser.add_argument('--loss', default = 'Proxy_Anchor',
@@ -107,9 +108,22 @@ wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)
 wandb.config.update(args)
 
 os.chdir('../data/')
-data_root = os.getcwd()
+data_root = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'scaled_heads_dataset'))
+
 # Dataset Loader and Sampler
-if args.dataset != 'Inshop':
+
+if args.dataset == 'tih':
+    print("Correct Dataset")
+    dataset_folder = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'scaled_heads_dataset'))
+    trn_dataset = SeaTurtleIDHeadsDataset(
+            root = data_root,
+            mode = 'train',
+            transform = dataset.utils.make_transform(
+                is_train = True, 
+                is_inception = (args.model == 'bn_inception')
+            ))
+    
+elif args.dataset != 'Inshop':
     trn_dataset = dataset.load(
             name = args.dataset,
             root = data_root,
@@ -149,7 +163,16 @@ else:
     )
     print('Random Sampling')
 
-if args.dataset != 'Inshop':
+if args.dataset == 'tih':
+    print("Correct Val Dataset")
+    ev_dataset = SeaTurtleIDHeadsDataset(
+            root = data_root,
+            mode = 'eval',
+            transform = dataset.utils.make_transform(
+                is_train = True, 
+                is_inception = (args.model == 'bn_inception')
+            ))
+elif args.dataset != 'Inshop':
     ev_dataset = dataset.load(
             name = args.dataset,
             root = data_root,
