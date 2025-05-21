@@ -76,7 +76,12 @@ def evaluate_cos(model, dataloader):
     xs = []
     
     cos_sim = F.linear(X, X)
-    Y = T[cos_sim.topk(1 + K)[1][:,1:]]
+    # Y = T[cos_sim.topk(1 + K)[1][:,1:]]
+
+    indices = cos_sim.topk(1 + K)[1][:,1:]
+    indices = indices.to(T.device)  # ensure same device
+    Y = T[indices]
+
     Y = Y.float().cpu()
     
     recall = []

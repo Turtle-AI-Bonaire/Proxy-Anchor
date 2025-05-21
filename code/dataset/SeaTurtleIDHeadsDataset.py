@@ -5,7 +5,7 @@ import PIL.Image
 from .base import BaseDataset
 import random
 
-class SeaTurtleIDHeadsDataset(BaseDataset):
+class SeaTurtleIDHeadsDataset(torch.utils.data.Dataset):
     def __init__(self, root, mode, transform=None):
         self.root = root + '/scaled_heads_dataset'
         self.mode = mode
@@ -40,7 +40,7 @@ class SeaTurtleIDHeadsDataset(BaseDataset):
 
             img_rel_path = image_paths_map[img_id]
             img_path = os.path.join(self.root, img_rel_path)
-
+            assert os.path.isfile(img_path)
             identity = ann["identity"] + "_" + pos
 
             self.im_paths.append(img_path)
@@ -54,7 +54,6 @@ class SeaTurtleIDHeadsDataset(BaseDataset):
         count_train_classes = int(classes_len * 0.8)
 
         # Freeze random seed for reproducibility if desired
-        random.seed(42)
 
         train_classes = random.sample(all_classes, count_train_classes)
         val_classes = [c for c in all_classes if c not in train_classes]
@@ -69,16 +68,17 @@ class SeaTurtleIDHeadsDataset(BaseDataset):
 
         # Filter samples based on selected classes
         filtered_indices = [i for i, y in enumerate(self.ys) if y in selected_classes]
-
         # Keep only selected samples
         self.im_paths = [self.im_paths[i] for i in filtered_indices]
         self.ys = [self.ys[i] for i in filtered_indices]
-        self.positions = [self.im_paths[i] for i in filtered_indices]
         self.I = list(range(len(self.ys)))  # fresh indices
 
         self.classes = sorted(selected_classes)
+        # Map class names to indices
+        self.class_to_idx = {cls_name: idx for idx, cls_name in enumerate(self.classes)}
+        self.ys = [self.class_to_idx[y] for y in self.ys]  # Convert ys to integer labels
 
-        super().__init__(self.root, self.mode, self.transform)
+        # super().__init__(self.root, self.mode, self.transform)
 
 
     def __getitem__(self, index):
@@ -94,6 +94,9 @@ class SeaTurtleIDHeadsDataset(BaseDataset):
 
     def get_position(self, index):
         return self.positions[index]
+    
+    def __len__(self):
+        return len(self.ys)
 
     def nb_classes(self):
         return len(self.classes)

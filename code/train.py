@@ -82,7 +82,7 @@ parser.add_argument('--mrg', default = 0.1, type = float,
 parser.add_argument('--IPC', type = int,
     help = 'Balanced sampling, images per class'
 )
-parser.add_argument('--warm', default = 1, type = int,
+parser.add_argument('--warm', default = 2, type = int,
     help = 'Warmup training epochs'
 )
 parser.add_argument('--bn-freeze', default = 1, type = int,
@@ -121,6 +121,7 @@ if args.dataset == 'tih':
                 is_train = True, 
                 is_inception = (args.model == 'bn_inception')
             ))
+    print(len(trn_dataset))
     
 elif args.dataset != 'Inshop':
     trn_dataset = dataset.load(
@@ -131,6 +132,7 @@ elif args.dataset != 'Inshop':
                 is_train = True, 
                 is_inception = (args.model == 'bn_inception')
             ))
+    
 else:
     trn_dataset = Inshop_Dataset(
             root = data_root,
@@ -171,6 +173,13 @@ if args.dataset == 'tih':
                 is_train = True, 
                 is_inception = (args.model == 'bn_inception')
             ))
+    dl_ev = torch.utils.data.DataLoader(
+        ev_dataset,
+        batch_size = args.sz_batch,
+        shuffle = False,
+        num_workers = args.nb_workers,
+        pin_memory = True
+    )
 elif args.dataset != 'Inshop':
     ev_dataset = dataset.load(
             name = args.dataset,
