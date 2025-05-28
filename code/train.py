@@ -4,12 +4,15 @@ import numpy as np
 
 from dataset.Inshop import Inshop_Dataset
 from dataset.SeaTurtleIDHeadsDataset import SeaTurtleIDHeadsDataset
+from dataset.BonaireTurtlesDataset import BonaireTurtlesDataset
+# from dataset.BonaireTurtlesDataset import BonaireTurtlesDataset
 from net.resnet import *
 from net.googlenet import *
 from net.bn_inception import *
 from dataset import sampler
 from torch.utils.data.sampler import BatchSampler
 from torch.utils.data.dataloader import default_collate
+from dataset.ComboDataset import CombinedTurtlesDataset
 
 from tqdm import *
 import wandb
@@ -112,8 +115,15 @@ os.chdir(data_root)
 
 # Dataset Loader and Sampler
 
-if args.dataset == 'tih':
-    print("Correct Dataset")
+if args.dataset == 'combo':
+    trn_dataset = CombinedTurtlesDataset(
+            root = data_root,
+            mode = 'train',
+            transform = dataset.utils.make_transform(
+                is_train = True, 
+                is_inception = (args.model == 'bn_inception')
+            ))
+elif args.dataset == 'tih':
     trn_dataset = SeaTurtleIDHeadsDataset(
             root = data_root,
             mode = 'train',
@@ -121,7 +131,15 @@ if args.dataset == 'tih':
                 is_train = True, 
                 is_inception = (args.model == 'bn_inception')
             ))
-    print(len(trn_dataset))
+
+elif args.dataset == 'bon':
+    trn_dataset = BonaireTurtlesDataset(
+            root = data_root,
+            mode = 'train',
+            transform = dataset.utils.make_transform(
+                is_train = True, 
+                is_inception = (args.model == 'bn_inception')
+            ))
     
 elif args.dataset != 'Inshop':
     trn_dataset = dataset.load(
@@ -167,6 +185,58 @@ else:
 if args.dataset == 'tih':
     print("Correct Val Dataset")
     ev_dataset = SeaTurtleIDHeadsDataset(
+            root = data_root,
+            mode = 'eval',
+            transform = dataset.utils.make_transform(
+                is_train = True, 
+                is_inception = (args.model == 'bn_inception')
+            ))
+    dl_ev = torch.utils.data.DataLoader(
+        ev_dataset,
+        batch_size = args.sz_batch,
+        shuffle = False,
+        num_workers = args.nb_workers,
+        pin_memory = True
+    )
+
+if args.dataset == 'combo':
+    print("Correct Val Dataset")
+    ev_dataset = CombinedTurtlesDataset(
+            root = data_root,
+            mode = 'eval',
+            transform = dataset.utils.make_transform(
+                is_train = True, 
+                is_inception = (args.model == 'bn_inception')
+            ))
+    dl_ev = torch.utils.data.DataLoader(
+        ev_dataset,
+        batch_size = args.sz_batch,
+        shuffle = False,
+        num_workers = args.nb_workers,
+        pin_memory = True
+    )
+
+if args.dataset == 'tih':
+    print("Correct Val Dataset")
+    ev_dataset = SeaTurtleIDHeadsDataset(
+            root = data_root,
+            mode = 'eval',
+            transform = dataset.utils.make_transform(
+                is_train = True, 
+                is_inception = (args.model == 'bn_inception')
+            ))
+    dl_ev = torch.utils.data.DataLoader(
+        ev_dataset,
+        batch_size = args.sz_batch,
+        shuffle = False,
+        num_workers = args.nb_workers,
+        pin_memory = True
+    )
+
+
+elif args.dataset == 'bon':
+    print("Correct Val Dataset")
+    ev_dataset = BonaireTurtlesDataset(
             root = data_root,
             mode = 'eval',
             transform = dataset.utils.make_transform(
@@ -368,6 +438,8 @@ for epoch in range(0, args.nb_epochs):
         if best_recall[0] < Recalls[0]:
             best_recall = Recalls
             best_epoch = epoch
+            print("Best")
+            torch.save(model.state_dict(), "/home/delta/Documents/Turtles/Proxy-Anchor/logs/best.pth")
             if not os.path.exists('{}'.format(LOG_DIR)):
                 os.makedirs('{}'.format(LOG_DIR))
             torch.save({'model_state_dict':model.state_dict()}, '{}/{}_{}_best.pth'.format(LOG_DIR, args.dataset, args.model))
