@@ -1,2 +1,5 @@
 wandb/
 **/__pycache__/
+logs/
+*.sh
+**/*.txt

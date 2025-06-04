@@ -8,37 +8,12 @@ from pandas import pandas
 
 
 class BonaireTurtlesDataset(torch.utils.data.Dataset):
-    """PyTorch ``Dataset`` for the updated sea-turtle re-identification corpus.
 
-    The public interface (constructor signature, return types, and helper
-    methods) matches the previous implementation so that the rest of the code
-    base can remain untouched. The only behavioural change lies in how the
-    dataset is discovered: we now consume a CSV metadata file instead of the
-    legacy ``annotations.json`` structure.
-
-    Folder layout expected beneath ``root``::
-
-        root/
-        ├── reid/
-        │   ├── 03-001/
-        │   │   ├── 03-001_L_2003_1.jpg
-        │   │   └── 03-001_R_2003_1.jpg
-        │   └── 03-002/
-        │       └── 03-002_L_2003_1.jpg
-        └── metadata.csv  (or metadata.csf)
-
-    The ``metadata.csv`` file contains *one row per picture* with the columns::
-
-        turtle_id, side (L|R), year, picture_number, filename
-
-    The train/val split logic is preserved (80 % of individual photo-side
-    identities for training, 20 % for evaluation).
-    """
 
     #: Sides accepted by the loader and their canonical labels
     _ALLOWED_SIDES = {"L", "R"}
 
-    def __init__(self, root: str, mode: str, transform=None):
+    def __init__(self, root: str, mode: str, transform=None, ignoreThreshold = 1):
         # ------------------------------------------------------------------
         # File system bookkeeping
         # ------------------------------------------------------------------
@@ -69,7 +44,10 @@ class BonaireTurtlesDataset(torch.utils.data.Dataset):
 
         grouped = data_df.groupby(['internal_turtle_id', 'side'])
         group_counts = grouped.size()
-        multi_sample_groups = group_counts[group_counts > 1]
+        if ignoreThreshold > 0: 
+            multi_sample_groups = group_counts[group_counts > ignoreThreshold]
+            print("Removing single-sample classes for BonaireTurtlesDataset.")
+        else: multi_sample_groups = group_counts
 
         index = 0
         for (turtle_id, side), group_df in grouped:
@@ -80,7 +58,9 @@ class BonaireTurtlesDataset(torch.utils.data.Dataset):
             turtle_id = turtle_id.strip()
             side = side.upper().strip()
 
-            if side not in self._ALLOWED_SIDES or not turtle_id:
+            # if side not in self._ALLOWED_SIDES or not turtle_id:
+            #     continue            
+            if not turtle_id:
                 continue
 
             for _, row in group_df.iterrows():
@@ -92,7 +72,8 @@ class BonaireTurtlesDataset(torch.utils.data.Dataset):
                 if not os.path.isfile(img_path):
                     continue
 
-                identity = f"{turtle_id}_{side}"  # preserve old label pattern
+                identity = f"{turtle_id}"  # preserve old label pattern
+                # identity = f"{turtle_id}_{side}"  # preserve old label pattern
 
                 self.im_paths.append(img_path)
                 self._y_strs.append(identity)

@@ -1,6 +1,7 @@
 import torch, math, time, argparse, json, os, sys
 import random, dataset, utils, losses, net
 import numpy as np
+from dataset.ComboDataset import CombinedTurtlesDataset
 
 from dataset.Inshop import Inshop_Dataset
 from net.resnet import *
@@ -9,9 +10,21 @@ from net.bn_inception import *
 from dataset import sampler
 from torch.utils.data.sampler import BatchSampler
 from torch.utils.data.dataloader import default_collate
-
+from dataset.BonaireTurtlesDataset import BonaireTurtlesDataset
+from dataset.Inshop import Inshop_Dataset
+from dataset.SeaTurtleIDHeadsDataset import SeaTurtleIDHeadsDataset
+from dataset.BonaireTurtlesDataset import BonaireTurtlesDataset
+from dataset.AmvrakikosDataset import AmvrakikosDataset
+from utils import save_r4_to_txt
 from tqdm import *
 import wandb
+
+dataset_map = {
+    'tih': SeaTurtleIDHeadsDataset,
+    'amv': AmvrakikosDataset,
+    'combo': CombinedTurtlesDataset,
+    'bon': BonaireTurtlesDataset
+}
 
 seed = 1
 random.seed(seed)
@@ -61,60 +74,107 @@ if args.gpu_id != -1:
     torch.cuda.set_device(args.gpu_id)
 
 # Data Root Directory
-os.chdir('../data/')
-data_root = os.getcwd()
-    
+# os.chdir('../data/')
+data_root = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..'))
 # Dataset Loader and Sampler
-if args.dataset != 'Inshop':
-    ev_dataset = dataset.load(
-            name = args.dataset,
-            root = data_root,
-            mode = 'eval',
-            transform = dataset.utils.make_transform(
-                is_train = False, 
-                is_inception = (args.model == 'bn_inception')
-            ))
 
+if args.dataset in dataset_map:
+    # Get the appropriate dataset class
+    dataset_class = dataset_map[args.dataset]
+    
+    # Create the dataset
+    
+    ev_dataset = dataset_class(
+        root=data_root,
+        mode='eval',
+        transform=dataset.utils.make_transform(
+            is_train=True,
+            is_inception=(args.model == 'bn_inception')
+        )
+    )
+    if args.dataset == 'bon':
+         ev_dataset = BonaireTurtlesDataset(
+        root=data_root,
+        mode='eval',
+        ignoreThreshold=0,
+        transform=dataset.utils.make_transform(
+            is_train=True,
+            is_inception=(args.model == 'bn_inception')
+            )
+        )
+
+    # Create the DataLoader
     dl_ev = torch.utils.data.DataLoader(
         ev_dataset,
-        batch_size = args.sz_batch,
-        shuffle = False,
-        num_workers = args.nb_workers,
-        pin_memory = True
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
     )
+
+    if args.dataset == 'amv':
+        print("length at amv val", len(ev_dataset))
+
+    print("Correct Val Dataset")
+
+# For Inshop dataset (special handling)
+elif args.dataset == 'Inshop':
+    print("Correct Val Dataset")
     
-else:
     query_dataset = Inshop_Dataset(
-            root = data_root,
-            mode = 'query',
-            transform = dataset.utils.make_transform(
-                is_train = False, 
-                is_inception = (args.model == 'bn_inception')
-    ))
-    
+        root=data_root,
+        mode='query',
+        transform=dataset.utils.make_transform(
+            is_train=False,
+            is_inception=(args.model == 'bn_inception')
+        )
+    )
+
     dl_query = torch.utils.data.DataLoader(
         query_dataset,
-        batch_size = args.sz_batch,
-        shuffle = False,
-        num_workers = args.nb_workers,
-        pin_memory = True
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
     )
 
     gallery_dataset = Inshop_Dataset(
-            root = data_root,
-            mode = 'gallery',
-            transform = dataset.utils.make_transform(
-                is_train = False, 
-                is_inception = (args.model == 'bn_inception')
-    ))
-    
+        root=data_root,
+        mode='gallery',
+        transform=dataset.utils.make_transform(
+            is_train=False,
+            is_inception=(args.model == 'bn_inception')
+        )
+    )
+
     dl_gallery = torch.utils.data.DataLoader(
         gallery_dataset,
-        batch_size = args.sz_batch,
-        shuffle = False,
-        num_workers = args.nb_workers,
-        pin_memory = True
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
     )
+
+# For other datasets that are not Inshop and don't need special handling
+elif args.dataset != 'Inshop':
+    ev_dataset = dataset.load(
+        name=args.dataset,
+        root=data_root,
+        mode='eval',
+        transform=dataset.utils.make_transform(
+            is_train=False,
+            is_inception=(args.model == 'bn_inception')
+        )
+    )
+
+    dl_ev = torch.utils.data.DataLoader(
+        ev_dataset,
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
+    )
+
 
 # Backbone Model
 if args.model.find('googlenet')+1:
@@ -135,7 +195,7 @@ if args.gpu_id == -1:
 if os.path.isfile(args.resume):
     print('=> loading checkpoint {}'.format(args.resume))
     checkpoint = torch.load(args.resume)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint)
 else:
     print('=> No checkpoint found at {}'.format(args.resume))
     sys.exit(0)
@@ -147,7 +207,8 @@ with torch.no_grad():
 
     elif args.dataset != 'SOP':
         Recalls = utils.evaluate_cos(model, dl_ev)
-
+        save_path = os.path.join(os.path.dirname( __file__ ), "logs.txt")
+        save_r4_to_txt(Recalls, save_path)
     else:
         Recalls = utils.evaluate_cos_SOP(model, dl_ev)
 

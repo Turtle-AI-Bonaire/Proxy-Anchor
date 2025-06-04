@@ -31,8 +31,8 @@ class SeaTurtleIDHeadsDataset(torch.utils.data.Dataset):
 
         for ann in annotations:
             pos = ann.get("position", "").lower()
-            if pos not in allowed_positions:
-                continue
+            # if pos not in allowed_positions:
+            #     continue
 
             img_id = ann["image_id"]
             if img_id not in image_paths_map:
@@ -41,7 +41,8 @@ class SeaTurtleIDHeadsDataset(torch.utils.data.Dataset):
             img_rel_path = image_paths_map[img_id]
             img_path = os.path.join(self.root, img_rel_path)
             assert os.path.isfile(img_path)
-            identity = ann["identity"] + "_" + pos
+            # identity = ann["identity"] + "_" + pos
+            identity = ann["identity"]
 
             self.im_paths.append(img_path)
             self.ys.append(identity)
@@ -65,7 +66,6 @@ class SeaTurtleIDHeadsDataset(torch.utils.data.Dataset):
         else:
             # For other modes, take all classes
             selected_classes = set(all_classes)
-
         # Filter samples based on selected classes
         filtered_indices = [i for i, y in enumerate(self.ys) if y in selected_classes]
         # Keep only selected samples

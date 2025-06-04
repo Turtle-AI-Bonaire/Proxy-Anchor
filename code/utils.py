@@ -6,7 +6,12 @@ import json
 from tqdm import tqdm
 import torch.nn.functional as F
 import math
+from dataset.ComboDataset import CombinedTurtlesDataset
 
+from dataset.Inshop import Inshop_Dataset
+from dataset.SeaTurtleIDHeadsDataset import SeaTurtleIDHeadsDataset
+from dataset.BonaireTurtlesDataset import BonaireTurtlesDataset
+from dataset.AmvrakikosDataset import AmvrakikosDataset
 def l2_norm(input):
     input_size = input.size()
     buffer = torch.pow(input, 2)
@@ -169,3 +174,39 @@ def evaluate_cos_SOP(model, dataloader):
         recall.append(r_at_k)
         print("R@{} : {:.3f}".format(k, 100 * r_at_k))
     return recall
+
+import os
+
+def save_r4_to_txt(recalls, file_path):
+    """
+    Extracts the R@4 value from `recalls` and appends it to `file_path`.
+
+    - If `recalls` is a list or tuple, assumes R@4 is at index 2.
+    - If `recalls` is a dict, tries keys "R4", "r4", or "R@4".
+    - If the key/index is not found, raises a ValueError.
+
+    Each call appends a new line with just the R@4 number.
+    """
+    # Determine R@4
+    if isinstance(recalls, (list, tuple)):
+        try:
+            r4 = recalls[2]
+        except IndexError:
+            raise ValueError(f"Expected at least 3 elements in recalls list, got: {recalls}")
+    elif isinstance(recalls, dict):
+        # try common dict keys
+        for key in ("R4", "r4", "R@4"):
+            if key in recalls:
+                r4 = recalls[key]
+                break
+        else:
+            raise ValueError(f"Could not find any of ['R4','r4','R@4'] in recalls dict: {list(recalls.keys())}")
+    else:
+        raise TypeError(f"Unexpected type for recalls: {type(recalls)}")
+
+    # Make sure directory exists
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    # Append R@4 to the file (one per line)
+    with open(file_path, "a") as f:
+        f.write(f"{r4}\n")

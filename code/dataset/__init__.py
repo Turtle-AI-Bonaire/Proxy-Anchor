@@ -4,13 +4,14 @@ from .SOP import SOP
 from .import utils
 from .base import BaseDataset
 from .ComboDataset import CombinedTurtlesDataset
-
+from .AmvrakikosDataset import AmvrakikosDataset
 
 _type = {
     'cars': Cars,
     'cub': CUBirds,
     'SOP': SOP,
-    'combo': CombinedTurtlesDataset
+    'combo': CombinedTurtlesDataset,
+    'amv': AmvrakikosDataset
 }
 
 def load(name, root, mode, transform = None):

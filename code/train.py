@@ -5,6 +5,7 @@ import numpy as np
 from dataset.Inshop import Inshop_Dataset
 from dataset.SeaTurtleIDHeadsDataset import SeaTurtleIDHeadsDataset
 from dataset.BonaireTurtlesDataset import BonaireTurtlesDataset
+from dataset.AmvrakikosDataset import AmvrakikosDataset
 # from dataset.BonaireTurtlesDataset import BonaireTurtlesDataset
 from net.resnet import *
 from net.googlenet import *
@@ -17,7 +18,7 @@ from dataset.ComboDataset import CombinedTurtlesDataset
 from tqdm import *
 import wandb
 
-seed = 1
+seed = 16
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -27,6 +28,34 @@ parser = argparse.ArgumentParser(description=
     'Official implementation of `Proxy Anchor Loss for Deep Metric Learning`'  
     + 'Our code is modified from `https://github.com/dichotomies/proxy-nca`'
 )
+
+dataset_map = {
+    'tih': SeaTurtleIDHeadsDataset,
+    'amv': AmvrakikosDataset,
+    'combo': CombinedTurtlesDataset,
+    'bon': BonaireTurtlesDataset
+}
+
+from torchvision import transforms
+
+def make_transform(is_train=True, is_inception=False):
+    if is_train:
+        transform = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225]),
+        ])
+    else:
+        transform = transforms.Compose([
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225]),
+        ])
+    return transform
+
 # export directory, training and val datasets, test datasets
 parser.add_argument('--LOG_DIR', 
     default='../logs',
@@ -123,6 +152,15 @@ if args.dataset == 'combo':
                 is_train = True, 
                 is_inception = (args.model == 'bn_inception')
             ))
+elif args.dataset == 'amv':
+    trn_dataset = AmvrakikosDataset(
+            root = data_root,
+            mode = 'train',
+            transform = dataset.utils.make_transform(
+                is_train = True, 
+                is_inception = (args.model == 'bn_inception')
+            ))
+    print("length at amv ", len(trn_dataset))
 elif args.dataset == 'tih':
     trn_dataset = SeaTurtleIDHeadsDataset(
             root = data_root,
@@ -131,7 +169,8 @@ elif args.dataset == 'tih':
                 is_train = True, 
                 is_inception = (args.model == 'bn_inception')
             ))
-
+    print("length at tih ", len(trn_dataset))
+    
 elif args.dataset == 'bon':
     trn_dataset = BonaireTurtlesDataset(
             root = data_root,
@@ -181,125 +220,92 @@ else:
         pin_memory = True
     )
     print('Random Sampling')
-
-if args.dataset == 'tih':
-    print("Correct Val Dataset")
-    ev_dataset = SeaTurtleIDHeadsDataset(
-            root = data_root,
-            mode = 'eval',
-            transform = dataset.utils.make_transform(
-                is_train = True, 
-                is_inception = (args.model == 'bn_inception')
-            ))
-    dl_ev = torch.utils.data.DataLoader(
-        ev_dataset,
-        batch_size = args.sz_batch,
-        shuffle = False,
-        num_workers = args.nb_workers,
-        pin_memory = True
-    )
-
-if args.dataset == 'combo':
-    print("Correct Val Dataset")
-    ev_dataset = CombinedTurtlesDataset(
-            root = data_root,
-            mode = 'eval',
-            transform = dataset.utils.make_transform(
-                is_train = True, 
-                is_inception = (args.model == 'bn_inception')
-            ))
-    dl_ev = torch.utils.data.DataLoader(
-        ev_dataset,
-        batch_size = args.sz_batch,
-        shuffle = False,
-        num_workers = args.nb_workers,
-        pin_memory = True
-    )
-
-if args.dataset == 'tih':
-    print("Correct Val Dataset")
-    ev_dataset = SeaTurtleIDHeadsDataset(
-            root = data_root,
-            mode = 'eval',
-            transform = dataset.utils.make_transform(
-                is_train = True, 
-                is_inception = (args.model == 'bn_inception')
-            ))
-    dl_ev = torch.utils.data.DataLoader(
-        ev_dataset,
-        batch_size = args.sz_batch,
-        shuffle = False,
-        num_workers = args.nb_workers,
-        pin_memory = True
-    )
-
-
-elif args.dataset == 'bon':
-    print("Correct Val Dataset")
-    ev_dataset = BonaireTurtlesDataset(
-            root = data_root,
-            mode = 'eval',
-            transform = dataset.utils.make_transform(
-                is_train = True, 
-                is_inception = (args.model == 'bn_inception')
-            ))
-    dl_ev = torch.utils.data.DataLoader(
-        ev_dataset,
-        batch_size = args.sz_batch,
-        shuffle = False,
-        num_workers = args.nb_workers,
-        pin_memory = True
-    )
-elif args.dataset != 'Inshop':
-    ev_dataset = dataset.load(
-            name = args.dataset,
-            root = data_root,
-            mode = 'eval',
-            transform = dataset.utils.make_transform(
-                is_train = False, 
-                is_inception = (args.model == 'bn_inception')
-            ))
-
-    dl_ev = torch.utils.data.DataLoader(
-        ev_dataset,
-        batch_size = args.sz_batch,
-        shuffle = False,
-        num_workers = args.nb_workers,
-        pin_memory = True
-    )
+if args.dataset in dataset_map:
+    # Get the appropriate dataset class
+    dataset_class = dataset_map[args.dataset]
     
-else:
+    # Create the dataset
+    ev_dataset = dataset_class(
+        root=data_root,
+        mode='eval',
+        transform=dataset.utils.make_transform(
+            is_train=True,
+            is_inception=(args.model == 'bn_inception')
+        )
+    )
+
+    # Create the DataLoader
+    dl_ev = torch.utils.data.DataLoader(
+        ev_dataset,
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
+    )
+
+    if args.dataset == 'amv':
+        print("length at amv val", len(ev_dataset))
+
+    print("Correct Val Dataset")
+
+# For Inshop dataset (special handling)
+elif args.dataset == 'Inshop':
+    print("Correct Val Dataset")
+    
     query_dataset = Inshop_Dataset(
-            root = data_root,
-            mode = 'query',
-            transform = dataset.utils.make_transform(
-                is_train = False, 
-                is_inception = (args.model == 'bn_inception')
-    ))
-    
+        root=data_root,
+        mode='query',
+        transform=dataset.utils.make_transform(
+            is_train=False,
+            is_inception=(args.model == 'bn_inception')
+        )
+    )
+
     dl_query = torch.utils.data.DataLoader(
         query_dataset,
-        batch_size = args.sz_batch,
-        shuffle = False,
-        num_workers = args.nb_workers,
-        pin_memory = True
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
     )
 
     gallery_dataset = Inshop_Dataset(
-            root = data_root,
-            mode = 'gallery',
-            transform = dataset.utils.make_transform(
-                is_train = False, 
-                is_inception = (args.model == 'bn_inception')
-    ))
-    
+        root=data_root,
+        mode='gallery',
+        transform=dataset.utils.make_transform(
+            is_train=False,
+            is_inception=(args.model == 'bn_inception')
+        )
+    )
+
     dl_gallery = torch.utils.data.DataLoader(
         gallery_dataset,
-        batch_size = args.sz_batch,
-        shuffle = False,
-        num_workers = args.nb_workers,
-        pin_memory = True
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
     )
+
+# For other datasets that are not Inshop and don't need special handling
+elif args.dataset != 'Inshop':
+    ev_dataset = dataset.load(
+        name=args.dataset,
+        root=data_root,
+        mode='eval',
+        transform=dataset.utils.make_transform(
+            is_train=False,
+            is_inception=(args.model == 'bn_inception')
+        )
+    )
+
+    dl_ev = torch.utils.data.DataLoader(
+        ev_dataset,
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
+    )
+
 
 nb_classes = trn_dataset.nb_classes()
 
@@ -439,7 +445,9 @@ for epoch in range(0, args.nb_epochs):
             best_recall = Recalls
             best_epoch = epoch
             print("Best")
-            torch.save(model.state_dict(), "/home/delta/Documents/Turtles/Proxy-Anchor/logs/best.pth")
+            save_path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'logs', f"best_{wandb.run.name}.pth"))
+
+            torch.save(model.state_dict(), save_path)
             if not os.path.exists('{}'.format(LOG_DIR)):
                 os.makedirs('{}'.format(LOG_DIR))
             torch.save({'model_state_dict':model.state_dict()}, '{}/{}_{}_best.pth'.format(LOG_DIR, args.dataset, args.model))

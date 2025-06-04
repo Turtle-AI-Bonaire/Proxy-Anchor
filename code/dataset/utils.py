@@ -75,6 +75,7 @@ def make_transform(is_train = True, is_inception = False):
     resnet_transform = transforms.Compose([
         transforms.RandomResizedCrop(resnet_sz_crop) if is_train else Identity(),
         transforms.RandomHorizontalFlip() if is_train else Identity(),
+        # transforms.RandomRotation(10, expand=False, center=None, fill=0) if is_train else Identity(),
         transforms.Resize(resnet_sz_resize) if not is_train else Identity(),
         transforms.CenterCrop(resnet_sz_crop) if not is_train else Identity(),
         transforms.ToTensor(),

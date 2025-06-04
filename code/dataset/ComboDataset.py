@@ -5,7 +5,7 @@ import torch
 import PIL.Image
 from dataset.BonaireTurtlesDataset import BonaireTurtlesDataset
 from dataset.SeaTurtleIDHeadsDataset import SeaTurtleIDHeadsDataset
-
+from dataset.AmvrakikosDataset import AmvrakikosDataset
 class CombinedTurtlesDataset(torch.utils.data.Dataset):
     """
     Combines SeaTurtleIDHeadsDataset and BonaireTurtlesDataset.
@@ -33,6 +33,7 @@ class CombinedTurtlesDataset(torch.utils.data.Dataset):
 
         dataset_heads = SeaTurtleIDHeadsDataset(root, mode='all', transform=None)
         dataset_bonaire = BonaireTurtlesDataset(root, mode='all', transform=None)
+        dataset_amv = AmvrakikosDataset(root, mode='all', transform=None)
 
         # --- Combine data from both datasets ---
         self.im_paths_combined: list[str] = []
@@ -42,11 +43,10 @@ class CombinedTurtlesDataset(torch.utils.data.Dataset):
         # Add data from SeaTurtleIDHeadsDataset with prefix
         if hasattr(dataset_heads, 'im_paths') and dataset_heads.im_paths: # Check if dataset loaded data
             self.im_paths_combined.extend(dataset_heads.im_paths)
-            self.ys_str_combined.extend([f"heads_{s}" for s in dataset_heads.classes])
+            self.ys_str_combined.extend([f"heads_{s}" for s in dataset_heads.ys])
             self.positions_combined.extend(dataset_heads.positions)
         else:
             print(f"Warning: SeaTurtleIDHeadsDataset loaded no data.")
-
 
         # Add data from BonaireTurtlesDataset with prefix
         if hasattr(dataset_bonaire, 'im_paths') and dataset_bonaire.im_paths: # Check if dataset loaded data
@@ -56,9 +56,16 @@ class CombinedTurtlesDataset(torch.utils.data.Dataset):
         else:
             print(f"Warning: BonaireTurtlesDataset loaded no data.")
 
+        # Add data from amvrakikos with prefix
+        if hasattr(dataset_amv, 'im_paths') and dataset_amv.im_paths: # Check if dataset loaded data
+            self.im_paths_combined.extend(dataset_amv.im_paths)
+            self.ys_str_combined.extend([f"bonaire_{s}" for s in dataset_amv._y_strs])
+            self.positions_combined.extend(dataset_amv.positions)
+        else:
+            print(f"Warning: amvrakikos loaded no data.")
 
         if not self.im_paths_combined:
-            # print("Combined dataset is empty after attempting to load from both sources.")
+            print("Combined dataset is empty after attempting to load from both sources.")
             self.im_paths = []
             self.ys = []
             self.I = []
@@ -71,7 +78,7 @@ class CombinedTurtlesDataset(torch.utils.data.Dataset):
 
         # --- Train/validation split at the *combined class* level ---
         all_classes_combined = sorted(list(set(self.ys_str_combined)))
-        
+
         if not all_classes_combined: # Handles case where sources loaded data but all were filtered/empty somehow
             print("Warning: Combined dataset has image paths but no unique classes derived. This is unusual.")
             self.im_paths = []
@@ -88,7 +95,7 @@ class CombinedTurtlesDataset(torch.utils.data.Dataset):
         rng = random.Random(self.seed)
         train_classes_combined = rng.sample(all_classes_combined, train_class_count_combined)
         val_classes_combined = [cls for cls in all_classes_combined if cls not in train_classes_combined]
-
+        print("all_classes_combined", len(all_classes_combined))
         if self.mode == "train":
             selected_classes_combined = set(train_classes_combined)
         elif self.mode == "eval":
@@ -97,6 +104,7 @@ class CombinedTurtlesDataset(torch.utils.data.Dataset):
             selected_classes_combined = set(all_classes_combined)
         else:
             raise ValueError(f"Invalid mode: {self.mode}. Choose from 'train', 'eval', 'all'.")
+        print("selected_classes_combined", len(selected_classes_combined))
 
         # --- Filter samples to the split we decided on ---
         self.im_paths: list[str] = []
@@ -124,7 +132,7 @@ class CombinedTurtlesDataset(torch.utils.data.Dataset):
         self.classes = sorted(list(selected_classes_combined)) # These are the actual classes in the current split
         self.class_to_idx = {cls_name: idx for idx, cls_name in enumerate(self.classes)}
         self.ys = [self.class_to_idx[s] for s in self._y_strs_final]
-
+        # raise Exception("stop")
 
     def __getitem__(self, index: int):
         """Return (image_tensor, target_int) for the sample at *index*."""
