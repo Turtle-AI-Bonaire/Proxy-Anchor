@@ -95,7 +95,6 @@ class CombinedTurtlesDataset(torch.utils.data.Dataset):
         rng = random.Random(self.seed)
         train_classes_combined = rng.sample(all_classes_combined, train_class_count_combined)
         val_classes_combined = [cls for cls in all_classes_combined if cls not in train_classes_combined]
-        print("all_classes_combined", len(all_classes_combined))
         if self.mode == "train":
             selected_classes_combined = set(train_classes_combined)
         elif self.mode == "eval":
@@ -104,7 +103,6 @@ class CombinedTurtlesDataset(torch.utils.data.Dataset):
             selected_classes_combined = set(all_classes_combined)
         else:
             raise ValueError(f"Invalid mode: {self.mode}. Choose from 'train', 'eval', 'all'.")
-        print("selected_classes_combined", len(selected_classes_combined))
 
         # --- Filter samples to the split we decided on ---
         self.im_paths: list[str] = []
@@ -132,6 +130,8 @@ class CombinedTurtlesDataset(torch.utils.data.Dataset):
         self.classes = sorted(list(selected_classes_combined)) # These are the actual classes in the current split
         self.class_to_idx = {cls_name: idx for idx, cls_name in enumerate(self.classes)}
         self.ys = [self.class_to_idx[s] for s in self._y_strs_final]
+        print("ys count:", len(self.ys))
+
         # raise Exception("stop")
 
     def __getitem__(self, index: int):
