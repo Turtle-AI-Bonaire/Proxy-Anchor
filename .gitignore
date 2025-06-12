@@ -3,3 +3,5 @@ wandb/
 logs/
 *.sh
 **/*.txt
+query_images
+query_results

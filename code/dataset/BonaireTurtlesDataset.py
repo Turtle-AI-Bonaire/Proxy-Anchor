@@ -17,7 +17,7 @@ class BonaireTurtlesDataset(torch.utils.data.Dataset):
         # ------------------------------------------------------------------
         # File system bookkeeping
         # ------------------------------------------------------------------
-        self.root = root + '/sbh2'
+        self.root = root + '/tcb_c_224'
         self.mode = mode.lower()
         self.transform = transform
 
@@ -42,7 +42,7 @@ class BonaireTurtlesDataset(torch.utils.data.Dataset):
         with open(meta_path, newline="", encoding="utf-8") as csvfile:
             data_df = pandas.DataFrame(list(csv.DictReader(csvfile)))
 
-        grouped = data_df.groupby(['internal_turtle_id', 'side'])
+        grouped = data_df.groupby(['bonaire_turtle_id', 'side'])
         group_counts = grouped.size()
         if ignoreThreshold > 0: 
             multi_sample_groups = group_counts[group_counts > ignoreThreshold]
