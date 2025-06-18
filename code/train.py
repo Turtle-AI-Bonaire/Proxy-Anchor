@@ -18,7 +18,7 @@ from dataset.ComboDataset import CombinedTurtlesDataset
 from tqdm import *
 import wandb
 
-seed = 10
+seed = 15
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
