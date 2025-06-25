@@ -1,17 +1,25 @@
+# Proxy Anchor Loss for Turtle Recognition
 
-# Proxy Anchor Loss for Deep Metric Learning
+Turtle AI implementation of **Proxy Anchor Loss for Deep Metric Learning** adapted for sea turtle facial recognition. This repository is a specialized fork of the original [Proxy Anchor Loss](https://arxiv.org/abs/2003.13911) implementation, customized for the Tag-a-Turtle project in collaboration with Bonaire Turtles.
 
-Official PyTorch implementation of CVPR 2020 paper [**Proxy Anchor Loss for Deep Metric Learning**](https://arxiv.org/abs/2003.13911). 
+**Proxy-Anchor Loss** provides state-of-the-art performance for turtle face recognition with fast convergence, enabling accurate identification of individual sea turtles from facial photographs.
 
-A standard embedding network trained with **Proxy-Anchor Loss** achieves SOTA performance and most quickly converges.
+This repository provides source code for training turtle recognition models and pretrained weights optimized for turtle facial features.
 
-This repository provides source code of experiments on four datasets (CUB-200-2011, Cars-196, Stanford Online Products and In-shop) and pretrained models.
+### Training Performance on Turtle Dataset
 
-### Accuracy in Recall@1 versus training time on the Cars-196
+The adapted implementation shows significant improvements in turtle recognition accuracy compared to feature matching approaches like LightGlue, showing around 74% accuracy at R@5 compared to around 50% for LightGlue.
 
-<p align="left"><img src="misc/Recall_Trainingtime.jpg" alt="graph" width="55%"></p>
+## Project Context
 
+This implementation is part of the **Tag-a-Turtle** project, which aims to create a non-invasive system for identifying individual sea turtles by their facial features. The system helps researchers track turtles over time without needing physical tags, supporting conservation efforts by Bonaire Turtles organization.
 
+### Key Adaptations for Turtle Recognition
+
+- **Underwater Image Processing**: Enhanced preprocessing for underwater photography conditions
+- **Turtle-Specific Augmentations**: Custom data augmentation strategies for turtle facial features
+- **Small Dataset Optimization**: Techniques for working with limited turtle image datasets
+- **Face Detection Integration**: Seamless integration with turtle face detection models (YOLO)
 
 ## Requirements
 
@@ -20,199 +28,153 @@ This repository provides source code of experiments on four datasets (CUB-200-20
 - NumPy
 - tqdm
 - wandb
+- OpenCV (for turtle-specific preprocessing)
 - [Pytorch-Metric-Learning](https://github.com/KevinMusgrave/pytorch-metric-learning)
 
+## Dataset Structure
 
+The turtle dataset should follow this structure:
 
-## Datasets
+```
+turtle_dataset/
+├── train/
+│   ├── turtle_001/
+│   │   ├── img1.jpg
+│   │   ├── img2.jpg
+│   │   └── ...
+│   ├── turtle_002/
+│   └── ...
+└── test/
+    ├── turtle_101/
+    └── ...
+```
 
-1. Download four public benchmarks for deep metric learning
-   - [CUB-200-2011](http://www.vision.caltech.edu/visipedia-data/CUB-200-2011/CUB_200_2011.tgz)
-   - Cars-196 ([Img](http://imagenet.stanford.edu/internal/car196/car_ims.tgz), [Annotation](http://imagenet.stanford.edu/internal/car196/cars_annos.mat))
-   - Stanford Online Products ([Link](https://cvgl.stanford.edu/projects/lifted_struct/))
-   - In-shop Clothes Retrieval ([Link](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion.html))
+### Data Preparation
 
-2. Extract the tgz or zip file into `./data/` (Exceptionally, for Cars-196, put the files in a `./data/cars196`)
+1. **Turtle Face Detection**: Use YOLO to detect and crop turtle faces from full images
+2. **Image Preprocessing**: Apply underwater-specific preprocessing (color correction, contrast enhancement)
+3. **Quality Filtering**: Remove blurry or poorly oriented images
+4. **Train/Test Split**: Maintain turtle identity separation between training and testing sets
 
-**[Notice!]** I found that the link that was previously uploaded for the CUB dataset was incorrect, so I corrected the link. (CUB-200 -> CUB-200-2011)
-If you have previously downloaded the CUB dataset from my repository, please download it again. 
-Thanks to myeongjun for reporting this issue!
+## Training Turtle Recognition Model
 
-## Training Embedding Network
-
-Note that a sufficiently large batch size and good parameters resulted in better overall performance than that described in the paper. You can download the trained model through the hyperlink in the table.
-
-### CUB-200-2011
-
-- Train a embedding network of Inception-BN (d=512) using **Proxy-Anchor loss**
+### Basic Training Command
 
 ```bash
 python train.py --gpu-id 0 \
                 --loss Proxy_Anchor \
-                --model bn_inception \
+                --model resnet50 \
                 --embedding-size 512 \
-                --batch-size 180 \
+                --batch-size 64 \
                 --lr 1e-4 \
-                --dataset cub \
-                --warm 1 \
+                --dataset combo \
+                --warm 2 \
                 --bn-freeze 1 \
                 --lr-decay-step 10
 ```
 
-- Train a embedding network of ResNet-50 (d=512) using **Proxy-Anchor loss**
+### Turtle-Specific Training Parameters
+
+- **`--turtle-augment`**: Enable turtle-specific data augmentation
+- **`--underwater-preprocess`**: Apply underwater image preprocessing
+- **`--min-images-per-turtle`**: Minimum images required per turtle identity
+- **`--face-detection-model`**: Path to YOLO turtle face detection model
+
+### Recommended Training Configuration
+
+For optimal turtle recognition performance:
 
 ```bash
 python train.py --gpu-id 0 \
                 --loss Proxy_Anchor \
-                --model resnet50 \
+                --model resnet101 \
                 --embedding-size 512 \
-                --batch-size 120 \
+                --batch-size 170 \
                 --lr 1e-4 \
-                --dataset cub \
-                --warm 5 \
+                --dataset combo \
+                --warm 2 \
                 --bn-freeze 1 \
-                --lr-decay-step 5
+                --lr-decay-step 10 \
+                --epochs 140
 ```
 
-| Method | Backbone | R@1 | R@2 | R@4 | R@8 |
-|:-:|:-:|:-:|:-:|:-:|:-:|
-| [Proxy-Anchor<sup>512</sup>](https://drive.google.com/file/d/1twaY6S2QIR8eanjDB6PoVPlCTsn-6ZJW/view?usp=sharing) | Inception-BN | 69.1 | 78.9 | 86.1 | 91.2 |
-| [Proxy-Anchor<sup>512</sup>](https://drive.google.com/file/d/1s-cRSEL2PhPFL9S7bavkrD_c59bJXL_u/view?usp=sharing) | ResNet-50 | 69.9 | 79.6 | 86.6 | 91.4 |
-
-### Cars-196
-
-- Train a embedding network of Inception-BN (d=512) using **Proxy-Anchor loss**
+## Evaluating Turtle Recognition
 
 ```bash
-python train.py --gpu-id 0 \
-                --loss Proxy_Anchor \
-                --model bn_inception \
-                --embedding-size 512 \
-                --batch-size 180 \
-                --lr 1e-4 \
-                --dataset cars \
-                --warm 1 \
-                --bn-freeze 1 \
-                --lr-decay-step 20
-```
-
-- Train a embedding network of ResNet-50 (d=512) using **Proxy-Anchor loss**
-
-```bash
-python train.py --gpu-id 0 \
-                --loss Proxy_Anchor \
-                --model resnet50 \
-                --embedding-size 512 \
-                --batch-size 120 \
-                --lr 1e-4 \
-                --dataset cars \
-                --warm 5 \
-                --bn-freeze 1 \
-                --lr-decay-step 10 
-```
-
-| Method | Backbone | R@1 | R@2 | R@4 | R@8 |
-|:-:|:-:|:-:|:-:|:-:|:-:|
-| [Proxy-Anchor<sup>512</sup>](https://drive.google.com/file/d/1wwN4ojmOCEAOaSYQHArzJbNdJQNvo4E1/view?usp=sharing) | Inception-BN | 86.4 | 91.9 | 95.0 | 97.0 |
-| [Proxy-Anchor<sup>512</sup>](https://drive.google.com/file/d/1_4P90jZcDr0xolRduNpgJ9tX9HZ1Ih7n/view?usp=sharing) | ResNet-50 | 87.7 | 92.7 | 95.5 | 97.3 |
-
-### Stanford Online Products
-
-- Train a embedding network of Inception-BN (d=512) using **Proxy-Anchor loss**
-
-```bash
-python train.py --gpu-id 0 \
-                --loss Proxy_Anchor \
-                --model bn_inception \
-                --embedding-size 512 \
-                --batch-size 180 \
-                --lr 6e-4 \
-                --dataset SOP \
-                --warm 1 \
-                --bn-freeze 0 \
-                --lr-decay-step 20 \
-                --lr-decay-gamma 0.25
-```
-
-| Method | Backbone | R@1 | R@10 | R@100 | R@1000 |
-|:-:|:-:|:-:|:-:|:-:|:-:|
-|[Proxy-Anchor<sup>512</sup>](https://drive.google.com/file/d/1hBdWhLP2J83JlOMRgZ4LLZY45L-9Gj2X/view?usp=sharing) | Inception-BN | 79.2 | 90.7 | 96.2 | 98.6 |
-
-### In-Shop Clothes Retrieval
-
-- Train a embedding network of Inception-BN (d=512) using **Proxy-Anchor loss**
-
-```bash
-python train.py --gpu-id 0 \
-                --loss Proxy_Anchor \
-                --model bn_inception \
-                --embedding-size 512 \
-                --batch-size 180 \
-                --lr 6e-4 \
-                --dataset Inshop \
-                --warm 1 \
-                --bn-freeze 0 \
-                --lr-decay-step 20 \
-                --lr-decay-gamma 0.25
-```
-
-| Method | Backbone | R@1 | R@10 | R@20 | R@30 | R@40 |
-|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| [Proxy-Anchor<sup>512</sup>](https://drive.google.com/file/d/1VE7psay7dblDyod8di72Sv7Z2xGtUGra/view?usp=sharing) | Inception-BN | 91.9 | 98.1 | 98.7 | 99.0 | 99.1 |
-
-
-
-## Evaluating Image Retrieval
-
-Follow the below steps to evaluate the provided pretrained model or your trained model. 
-
-Trained best model will be saved in the `./logs/folder_name`.
-
-```bash
-# The parameters should be changed according to the model to be evaluated.
 python evaluate.py --gpu-id 0 \
-                   --batch-size 120 \
-                   --model bn_inception \
-                   --embedding-size 512 \
-                   --dataset cub \
-                   --resume /set/your/model/path/best_model.pth
+                   --batch-size 64 \
+                   --model [model with which the checkpoint was trained] \
+                   --embedding-size [batch size with which the checkpoint was trained] \
+                   --dataset bon \
+                   --resume ./models/saved_checkpoint_name.pth 
 ```
 
+## Integration with Tag-a-Turtle Pipeline
 
+This model integrates seamlessly with the Tag-a-Turtle recognition pipeline:
+
+```python
+# Example integration
+from turtle_recognition import TurtleProxyAnchor
+
+model = TurtleProxyAnchor(
+    model_path='./models/turtle_resnet50_best.pth',
+    embedding_size=512
+)
+
+# Generate embeddings for turtle faces
+turtle_embedding = model.extract_embedding(turtle_face_image)
+```
+
+## Turtle-Specific Features
+
+### Data Augmentation
+- **Minimal data augmentation to avoid losing crucial detail**
+- **Embedding aggregation for improved accuracy**
+- **Dataset classes for loading relevant turtle individual datasets**
+
+## Field Deployment
+
+### Google Colab Integration
+This model is designed to work within Google Colab for field researchers:
+
+```python
+# Load model in Colab
+!pip install turtle-recognition-requirements.txt
+from turtle_proxy_anchor import load_model
+
+model = load_model('turtle_resnet50_best.pth')
+results = model.identify_turtle(query_image, gallery_embeddings)
+```
+
+### Performance Optimization
+- **Model quantization** for faster inference
+- **Batch processing** for multiple turtle images
+- **Embedding caching** to avoid recomputation
+- **GPU memory optimization** for large datasets
+
+## Contributors
+
+| Contributor | Role | Primary Contributions |
+|-------------|------|----------------------|
+| Daniil Rayu | ML Engineer | Proxy Anchor adaptation, model training, hyperparameter tuning, dataset adaptation |
 
 ## Acknowledgements
 
-Our code is modified and adapted on these great repositories:
+This implementation is built upon:
 
-- [No Fuss Distance Metric Learning using Proxies](https://github.com/dichotomies/proxy-nca)
-- [PyTorch Metric learning](https://github.com/KevinMusgrave/pytorch-metric-learning)
+- [Original Proxy Anchor Loss implementation](https://github.com/tjddus9597/Proxy-Anchor-CVPR2020)
+- [PyTorch Metric Learning](https://github.com/KevinMusgrave/pytorch-metric-learning)
+- Sea Turtle Conservation Bonaire organization for providing the turtle dataset
 
+## Related Projects
 
+- [Tag-a-Turtle Main Repository](https://github.com/Turtle-AI-Bonaire/inference_pipeline) - Complete turtle recognition pipeline
+- [Turtle Face Detection](https://github.com/Turtle-AI-Bonaire/yolo-turtle-detection) - YOLO-based turtle face detection
 
-## Other Implementations
+## Contact
 
-- [Pytorch, Tensorflow and Mxnet implementations](https://github.com/geonm/proxy-anchor-loss)
-- [Keras implementations](https://github.com/nixingyang/Proxy-Anchor-Loss) 
-  
-Thanks Geonmo and nixingyang for the good implementation :D
-
-## New Method for Further Improvement
-Recently, our paper **Embedding Transfer with Label Relaxation for Improved Metric Learning** which presents the new knowledge distillation method for metric learning is accepted and will be presented at CVPR21.
-Our new method can greatly improve the performance, or reduce sizes and output dimensions of embedding networks with negligible performance degradation.
-If you are also interested in new knowlege distillation method for metric learning, please check the following arxiv and repository links.
-The new repository has been refactored based on the Proxy-Anchor Loss implementation, so those who have used this repository will be able to use new code easily. :D
-- [Arxiv](https://arxiv.org/pdf/2103.14908.pdf) | [Github](https://github.com/tjddus9597/LabelRelaxation-CVPR21)
-
-## Citation
-
-If you use this method or this code in your research, please cite as:
-
-    
-    @InProceedings{Kim_2020_CVPR,
-      author = {Kim, Sungyeon and Kim, Dongwon and Cho, Minsu and Kwak, Suha},
-      title = {Proxy Anchor Loss for Deep Metric Learning},
-      booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-      month = {June},
-      year = {2020}
-    }
-
+For questions about the turtle recognition implementation:
+- Email: deltafontys@gmail.com
+- Project Repository: https://github.com/Turtle-AI-Bonaire/Proxy-Anchor
+- Main Pipeline: https://github.com/Turtle-AI-Bonaire/inference_pipeline
