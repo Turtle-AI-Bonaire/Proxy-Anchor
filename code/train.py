@@ -14,7 +14,7 @@ from dataset import sampler
 from torch.utils.data.sampler import BatchSampler
 from torch.utils.data.dataloader import default_collate
 from dataset.ComboDataset import CombinedTurtlesDataset
-
+from net.dino import *
 from tqdm import *
 import wandb
 
@@ -321,6 +321,9 @@ elif args.model.find('resnet50')+1:
     model = Resnet50(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = args.bn_freeze)
 elif args.model.find('resnet101')+1:
     model = Resnet101(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = args.bn_freeze)
+elif args.model.find('dino_s')+1:
+    model = Dinov2Model(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = args.bn_freeze)
+    
 model = model.cuda()
 
 if args.gpu_id == -1:
